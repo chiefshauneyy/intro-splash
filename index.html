@@ -41,19 +41,23 @@
 
     * { box-sizing: border-box; }
     html, body { height: 100%; }
+
     body {
       margin: 0;
       display: grid;
       place-items: center;
       background: var(--bg);
       color: var(--fg);
+
+      /* Keep no scrollbars, but we’ll avoid clipping via containment fix */
       overflow: hidden;
+
       font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
     }
 
     main {
       width: min(100%, 980px);
-      padding: 24px;
+      padding: 48px 24px; /* extra vertical room so jumps don’t feel tight */
       display: grid;
       place-items: center;
       gap: 16px;
@@ -61,12 +65,17 @@
 
     .scene {
       perspective: calc(var(--perspective) * 1px);
+      overflow: visible;
     }
 
     .word-wrap {
       position: relative;
       transform-style: preserve-3d;
-      contain: layout paint;
+
+      /* IMPORTANT: do NOT use `contain: paint;` or it will clip the animation */
+      contain: layout;          /* optional perf win without clipping */
+      overflow: visible;        /* allow the jump/3D to render outside bounds */
+      isolation: isolate;       /* helps with stacking/3D compositing */
     }
 
     .word {
@@ -114,8 +123,6 @@
       border: var(--border) solid hsl(var(--h) 100% 50%);
       backface-visibility: hidden;
       transform-style: preserve-3d;
-
-      /* little polish */
       box-shadow: 0 6px 16px rgba(0,0,0,.18);
     }
 
@@ -135,6 +142,7 @@
       gap: calc(var(--size) * 0.18px);
       transform-style: preserve-3d;
       pointer-events: none;
+      overflow: visible;
     }
 
     .shadow {
@@ -146,37 +154,6 @@
       animation: shadowScale var(--duration) calc(var(--stagger) * var(--i)) var(--ease) infinite;
       background: radial-gradient(rgba(0,0,0,.45), transparent 65%) 50% 50%;
       opacity: 0.85;
-    }
-
-    /* UI controls */
-    .controls {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      justify-content: center;
-      flex-wrap: wrap;
-      user-select: none;
-    }
-
-    .btn {
-      appearance: none;
-      border: 1px solid rgba(255,255,255,.15);
-      background: rgba(0,0,0,.22);
-      color: inherit;
-      padding: 10px 14px;
-      border-radius: 14px;
-      cursor: pointer;
-      font-weight: 600;
-      letter-spacing: .2px;
-      backdrop-filter: blur(10px);
-      transition: transform .12s ease, background .12s ease;
-    }
-    .btn:hover { transform: translateY(-1px); background: rgba(0,0,0,.28); }
-    .btn:active { transform: translateY(0px); }
-
-    .meta {
-      font-size: 0.95rem;
-      opacity: 0.8;
     }
 
     /* Animations */
@@ -212,24 +189,19 @@
         <div class="shadow-row" id="shadows" aria-hidden="true"></div>
       </div>
     </div>
-
-    <div class="controls">
-      <button class="btn" id="skipBtn" type="button">Skip intro</button>
-      <div class="meta" id="meta">Redirecting in <span id="count">5</span>s…</div>
-    </div>
   </main>
 
   <script>
+    // Redirect + countdown DISABLED for now (optimization mode)
     const CONFIG = {
       text: "HAVE FUN!",
-      redirectUrl: "https://catalogfacesoffire.s3-website-us-west-2.amazonaws.com/",
+      enableRedirect: false,
+      redirectUrl: "https://example.com",
       delayMs: 5000
     };
 
     const wordEl = document.getElementById("word");
     const shadowEl = document.getElementById("shadows");
-    const countEl = document.getElementById("count");
-    const skipBtn = document.getElementById("skipBtn");
 
     // Build letters from text (keeps your stagger timing)
     const chars = [...CONFIG.text];
@@ -270,36 +242,10 @@
       shadowEl.appendChild(shadow);
     });
 
-    // Redirect logic (single source of truth)
-    let redirected = false;
-    const go = () => {
-      if (redirected) return;
-      redirected = true;
-      window.location.assign(CONFIG.redirectUrl);
-    };
-
-    // Countdown display
-    const start = Date.now();
-    const tick = () => {
-      const elapsed = Date.now() - start;
-      const remaining = Math.max(0, CONFIG.delayMs - elapsed);
-      countEl.textContent = String(Math.ceil(remaining / 1000));
-      if (remaining <= 0) go();
-    };
-
-    const interval = setInterval(tick, 200);
-    const timeout = setTimeout(() => {
-      clearInterval(interval);
-      go();
-    }, CONFIG.delayMs);
-
-    skipBtn.addEventListener("click", () => {
-      clearInterval(interval);
-      clearTimeout(timeout);
-      go();
-    });
-
-    tick();
+    // Optional: enable redirect later by flipping enableRedirect to true.
+    if (CONFIG.enableRedirect) {
+      setTimeout(() => window.location.assign(CONFIG.redirectUrl), CONFIG.delayMs);
+    }
   </script>
 </body>
 </html>
