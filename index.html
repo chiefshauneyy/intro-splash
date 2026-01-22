@@ -1,1 +1,305 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Have fun!</title>
 
+  <style>
+    /* ===== Theme / Tunables ===== */
+    :root{
+      --bg: #e6e6e6;
+      --fg: #f2f2f2;
+
+      --size: 56;            /* cube face size (px) */
+      --perspective: 600;    /* 3D depth */
+      --tiltX: -28deg;
+      --tiltY: 45deg;
+
+      --movement: 0.85;
+      --stop: 0.5;
+      --duration: calc((var(--movement) * (1 / var(--stop))) * 1s);
+      --stagger: 0.11s;
+
+      --ease: cubic-bezier(1, -0.52, 0.26, 0.89);
+      --border: 5px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #151515; }
+    }
+
+    /* Optional custom font — keep if you still have the files */
+    @font-face {
+      font-family: "Secrets";
+      src: url("i_tell_you_all_my_secrets-webfont.woff2") format("woff2"),
+           url("i_tell_you_all_my_secrets-webfont.woff") format("woff");
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      display: grid;
+      place-items: center;
+      background: var(--bg);
+      color: var(--fg);
+      overflow: hidden;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    }
+
+    main {
+      width: min(100%, 980px);
+      padding: 24px;
+      display: grid;
+      place-items: center;
+      gap: 16px;
+    }
+
+    .scene {
+      perspective: calc(var(--perspective) * 1px);
+    }
+
+    .word-wrap {
+      position: relative;
+      transform-style: preserve-3d;
+      contain: layout paint;
+    }
+
+    .word {
+      display: flex;
+      transform: translate(calc(var(--size) * 1.3px), 0) rotateX(var(--tiltX)) rotateY(var(--tiltY));
+      transform-style: preserve-3d;
+      align-items: flex-end;
+      gap: calc(var(--size) * 0.18px);
+    }
+
+    /* Each letter wrapper bounces */
+    .letter-wrap {
+      transform-origin: bottom center;
+      transform-style: preserve-3d;
+      animation: jump var(--duration) calc(var(--stagger) * var(--i)) var(--ease) infinite;
+      will-change: transform;
+    }
+
+    /* Each letter rotates (cube flips) */
+    .letter {
+      position: relative;
+      width: calc(var(--size) * 1px);
+      height: calc(var(--size) * 1px);
+      transform-style: preserve-3d;
+
+      font-family: "Secrets", system-ui, sans-serif;
+      font-weight: 800;
+      font-size: 3.2rem;
+      line-height: 1;
+
+      animation: spin calc(var(--duration) * 2) calc(var(--stagger) * var(--i)) ease infinite;
+      will-change: transform;
+    }
+
+    /* Invisible spacer but keeps timing */
+    .letter-wrap[data-space="true"] { opacity: 0; }
+
+    .panel {
+      --h: calc((360 / var(--letters)) * var(--i));
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: hsl(var(--h) 65% 40%);
+      border: var(--border) solid hsl(var(--h) 100% 50%);
+      backface-visibility: hidden;
+      transform-style: preserve-3d;
+
+      /* little polish */
+      box-shadow: 0 6px 16px rgba(0,0,0,.18);
+    }
+
+    /* Cube faces */
+    .panel.front { transform: translateZ(calc(var(--size) * 0.5px)); }
+    .panel.top   { transform: rotateX( 90deg) translateZ(calc(var(--size) * 0.5px)); }
+    .panel.back  { transform: rotateX(180deg) translateZ(calc(var(--size) * 0.5px)); }
+    .panel.bot   { transform: rotateX(-90deg) translateZ(calc(var(--size) * 0.5px)); }
+    .panel.left  { transform: rotateY(-90deg) translateZ(calc(var(--size) * 0.5px)); }
+
+    /* Shadow layer */
+    .shadow-row {
+      position: absolute;
+      left: 0;
+      bottom: -6px;
+      display: flex;
+      gap: calc(var(--size) * 0.18px);
+      transform-style: preserve-3d;
+      pointer-events: none;
+    }
+
+    .shadow {
+      width: calc(var(--size) * 1px);
+      height: calc(var(--size) * 1px);
+      transform-origin: center;
+      filter: blur(10px);
+      transform: rotateX(90deg) translateZ(calc(var(--size) * -0.55px));
+      animation: shadowScale var(--duration) calc(var(--stagger) * var(--i)) var(--ease) infinite;
+      background: radial-gradient(rgba(0,0,0,.45), transparent 65%) 50% 50%;
+      opacity: 0.85;
+    }
+
+    /* UI controls */
+    .controls {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      user-select: none;
+    }
+
+    .btn {
+      appearance: none;
+      border: 1px solid rgba(255,255,255,.15);
+      background: rgba(0,0,0,.22);
+      color: inherit;
+      padding: 10px 14px;
+      border-radius: 14px;
+      cursor: pointer;
+      font-weight: 600;
+      letter-spacing: .2px;
+      backdrop-filter: blur(10px);
+      transition: transform .12s ease, background .12s ease;
+    }
+    .btn:hover { transform: translateY(-1px); background: rgba(0,0,0,.28); }
+    .btn:active { transform: translateY(0px); }
+
+    .meta {
+      font-size: 0.95rem;
+      opacity: 0.8;
+    }
+
+    /* Animations */
+    @keyframes spin {
+      0%, 15%   { transform: rotateX(0deg); }
+      20%, 65%  { transform: rotateX(270deg); }
+      70%, 100% { transform: rotateX(540deg); }
+    }
+
+    @keyframes jump {
+      0%, 50%, 100% { transform: scaleX(1) scaleY(1) translateY(0); }
+      15%           { transform: scaleX(1.18) scaleY(0.82) translateY(0); }
+      25%           { transform: scaleX(0.92) scaleY(1.08) translateY(-100%); }
+    }
+
+    @keyframes shadowScale {
+      0%, 20%, 50%, 100% { transform: rotateX(90deg) translateZ(calc(var(--size) * -0.55px)) scale(1); }
+      25%                { transform: rotateX(90deg) translateZ(calc(var(--size) * -0.55px)) scale(1.25); }
+    }
+
+    /* Accessibility: reduce motion */
+    @media (prefers-reduced-motion: reduce) {
+      .letter-wrap, .letter, .shadow { animation: none !important; }
+    }
+  </style>
+</head>
+
+<body>
+  <main>
+    <div class="scene" aria-label="Intro animation">
+      <div class="word-wrap">
+        <div class="word" id="word" aria-hidden="true"></div>
+        <div class="shadow-row" id="shadows" aria-hidden="true"></div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button class="btn" id="skipBtn" type="button">Skip intro</button>
+      <div class="meta" id="meta">Redirecting in <span id="count">5</span>s…</div>
+    </div>
+  </main>
+
+  <script>
+    const CONFIG = {
+      text: "HAVE FUN!",
+      redirectUrl: "https://catalogfacesoffire.s3-website-us-west-2.amazonaws.com/",
+      delayMs: 5000
+    };
+
+    const wordEl = document.getElementById("word");
+    const shadowEl = document.getElementById("shadows");
+    const countEl = document.getElementById("count");
+    const skipBtn = document.getElementById("skipBtn");
+
+    // Build letters from text (keeps your stagger timing)
+    const chars = [...CONFIG.text];
+    document.documentElement.style.setProperty("--letters", String(chars.length));
+
+    chars.forEach((ch, i) => {
+      const wrap = document.createElement("div");
+      wrap.className = "letter-wrap";
+      wrap.style.setProperty("--i", i);
+
+      if (ch === " ") wrap.dataset.space = "true";
+
+      const letter = document.createElement("div");
+      letter.className = "letter";
+      letter.style.setProperty("--i", i);
+
+      const faces = [
+        ["front", ch],
+        ["top", ch],
+        ["back", ch],
+        ["bot", ch],
+        ["left", ""]
+      ];
+
+      faces.forEach(([cls, txt]) => {
+        const panel = document.createElement("span");
+        panel.className = `panel ${cls}`;
+        panel.textContent = txt;
+        letter.appendChild(panel);
+      });
+
+      wrap.appendChild(letter);
+      wordEl.appendChild(wrap);
+
+      const shadow = document.createElement("div");
+      shadow.className = "shadow";
+      shadow.style.setProperty("--i", i);
+      shadowEl.appendChild(shadow);
+    });
+
+    // Redirect logic (single source of truth)
+    let redirected = false;
+    const go = () => {
+      if (redirected) return;
+      redirected = true;
+      window.location.assign(CONFIG.redirectUrl);
+    };
+
+    // Countdown display
+    const start = Date.now();
+    const tick = () => {
+      const elapsed = Date.now() - start;
+      const remaining = Math.max(0, CONFIG.delayMs - elapsed);
+      countEl.textContent = String(Math.ceil(remaining / 1000));
+      if (remaining <= 0) go();
+    };
+
+    const interval = setInterval(tick, 200);
+    const timeout = setTimeout(() => {
+      clearInterval(interval);
+      go();
+    }, CONFIG.delayMs);
+
+    skipBtn.addEventListener("click", () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+      go();
+    });
+
+    tick();
+  </script>
+</body>
+</html>
